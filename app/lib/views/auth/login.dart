@@ -27,10 +27,10 @@ class _LoginScreenState extends State<LoginScreen> {
     emailFocus = FocusNode();
     passwordController = TextEditingController();
     passwordFocus = FocusNode();
-    if (kDebugMode) {
-      emailController..text = 'khuntsr@gmail.com';
-      passwordController..text = 'Suchit@16';
-    }
+    // if (kDebugMode) {
+    //   emailController..text = 'khuntsr@gmail.com';
+    //   passwordController..text = 'Suchit@28';
+    // }
   }
 
   @override
@@ -190,7 +190,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ShowToast(response.message);
 
         if (response.success) {
-          Navigator.pushNamed(context, '/');
+          Navigator.pushNamed(context, '/dashboard');
         }
       }
     } catch (ex) {}

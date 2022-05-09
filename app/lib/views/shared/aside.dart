@@ -1,4 +1,5 @@
 import 'package:app/helpers/static-data.dart';
+import 'package:app/helpers/utilities.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttericon/font_awesome5_icons.dart';
 
@@ -26,7 +27,6 @@ Widget ASide(String email, BuildContext context) {
                           borderRadius: BorderRadius.circular(50),
                           child: Image.asset('assets/images/dp.jpg'),
                         ),
-
                       ),
                       SizedBox(height: 16.0),
                       Text(
@@ -47,37 +47,69 @@ Widget ASide(String email, BuildContext context) {
                   dense: true,
                 ),
                 ListTile(
-                  onTap: () {},
+                  onTap: () {
+                    ShowToast('Comics screen is work in progress.');
+                  },
                   leading: Icon(FontAwesome5.book, size: 20.0, color: DefaultColors.baby_white),
-                  title: Text("Comics", style: TextStyle(fontSize: 14)),
+                  title: Row(
+                    children: [
+                      Text("Comics", style: TextStyle(fontSize: 14)),
+                      SizedBox(width: 6),
+                      Container(
+                        padding: EdgeInsets.all(3),
+                        decoration: BoxDecoration(color: DefaultColors.danger, borderRadius: BorderRadius.all(Radius.circular(3))),
+                        child: Text("WIP", style: TextStyle(fontSize: 11)),
+                      ),
+                    ],
+                  ),
                   textColor: DefaultColors.baby_white,
                   dense: true,
                 ),
                 ListTile(
-                  onTap: () {},
+                  onTap: () {
+                    ShowToast('Characters screen is work in progress.');
+                  },
                   leading: Icon(FontAwesome5.users, size: 20.0, color: DefaultColors.baby_white),
-                  title: Text("Characters", style: TextStyle(fontSize: 14)),
+                  title: Row(
+                    children: [
+                      Text("Characters", style: TextStyle(fontSize: 14)),
+                      SizedBox(width: 6),
+                      Container(
+                        padding: EdgeInsets.all(3),
+                        decoration: BoxDecoration(color: DefaultColors.danger, borderRadius: BorderRadius.all(Radius.circular(3))),
+                        child: Text("WIP", style: TextStyle(fontSize: 11)),
+                      ),
+                    ],
+                  ),
                   textColor: DefaultColors.baby_white,
                   dense: true,
                 ),
                 ListTile(
-                  onTap: () {},
+                  onTap: () {
+                    ShowToast('Stories screen is work in progress.');
+                  },
                   leading: Icon(FontAwesome5.history, size: 20.0, color: DefaultColors.baby_white),
-                  title: Text("Stories", style: TextStyle(fontSize: 14)),
+                  title: Row(
+                    children: [
+                      Text("Stories", style: TextStyle(fontSize: 14)),
+                      SizedBox(width: 6),
+                      Container(
+                        padding: EdgeInsets.all(3),
+                        decoration: BoxDecoration(color: DefaultColors.danger, borderRadius: BorderRadius.all(Radius.circular(3))),
+                        child: Text("WIP", style: TextStyle(fontSize: 11)),
+                      ),
+                    ],
+                  ),
                   textColor: DefaultColors.baby_white,
                   dense: true,
                 ),
                 ListTile(
-                  onTap: () {},
+                  onTap: () {
+                    Navigator.pushNamed(context, '/changepassword');
+
+                  },
                   leading: Icon(FontAwesome5.lock, size: 20.0, color: DefaultColors.baby_white),
                   title: Text("Change Password", style: TextStyle(fontSize: 14)),
-                  textColor: DefaultColors.baby_white,
-                  dense: true,
-                ),
-                ListTile(
-                  onTap: () {},
-                  leading: Icon(FontAwesome5.user_cog, size: 20.0, color: DefaultColors.baby_white),
-                  title: Text("Settings", style: TextStyle(fontSize: 14)),
                   textColor: DefaultColors.baby_white,
                   dense: true,
                 ),

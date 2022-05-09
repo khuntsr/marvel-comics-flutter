@@ -1,6 +1,7 @@
 import 'package:app/views/auth/login.dart';
 import 'package:app/views/auth/register.dart';
 import 'package:app/views/home/home.dart';
+import 'package:app/views/users/changepassword.dart';
 import 'package:flutter/material.dart';
 
 import 'main.dart';
@@ -17,6 +18,8 @@ class RouteGenerator {
         return MaterialPageRoute(builder: (_) => LoginScreen());
       case '/register':
         return MaterialPageRoute(builder: (_) => RegisterScreen());
+      case '/changepassword':
+        return MaterialPageRoute(builder: (_) => ChangePasswordScreen());
       default:
         return MaterialPageRoute(builder: (_) => HomeScreen());
     }

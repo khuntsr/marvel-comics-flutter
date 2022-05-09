@@ -9,7 +9,6 @@ import 'helpers/session.dart';
 import 'helpers/static-data.dart';
 
 void main() {
-  WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   runApp(const App());
 }
 

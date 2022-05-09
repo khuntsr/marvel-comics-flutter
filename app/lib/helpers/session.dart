@@ -28,7 +28,7 @@ Future<SessionVm?> GetSession() async {
 Future<int> IsPermissionGranted() async {
   var response = 1;
   var curretnSession = await GetSession();
-  if (curretnSession != null && curretnSession.userId != null) {
+  if (curretnSession != null && curretnSession.email != null && curretnSession.userId != null && curretnSession.userId != 'null') {
     response = 2;
   } else {}
   return response;
