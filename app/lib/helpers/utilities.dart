@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:liquid_progress_indicator/liquid_progress_indicator.dart';
+import 'package:uuid/uuid.dart';
 
 extension HexColor on Color {
   static Color fromHex(String hexString) {
@@ -47,18 +48,18 @@ void DialogLoader(BuildContext context, String text) {
               width: 40,
               child: LiquidCircularProgressIndicator(
                 value: 0.5,
-                valueColor: AlwaysStoppedAnimation(DefaultColors.secondary),
+                valueColor: AlwaysStoppedAnimation(DefaultColors.primary),
                 backgroundColor: DefaultColors.baby_white,
-                borderColor: DefaultColors.secondary,
+                borderColor: DefaultColors.primary,
                 borderWidth: 3.0,
               ),
             ),
             SizedBox(width: 14),
             Flexible(
                 child: Text(
-                  text,
-                  style: TextStyle(fontSize: 16, color: DefaultColors.secondary),
-                ))
+              text,
+              style: TextStyle(fontSize: 16, color: DefaultColors.primary),
+            ))
           ],
         ),
       ),
@@ -70,4 +71,9 @@ Widget ScreenLoader() {
   return Center(
     child: CupertinoActivityIndicator(animating: true, radius: 30),
   );
+}
+
+String GenerateUuid() {
+  var uuid = Uuid();
+  return uuid.v4();
 }

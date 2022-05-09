@@ -1,11 +1,11 @@
 
 import 'package:app/routing.dart';
 import 'package:app/views/auth/login.dart';
-import 'package:app/views/auth/register.dart';
+import 'package:app/views/home/home.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 
+import 'helpers/session.dart';
 import 'helpers/static-data.dart';
 
 void main() {
@@ -48,38 +48,20 @@ class _AppState extends State<App> {
           bodyLarge: TextStyle(color: DefaultColors.grey, fontSize: 16),
         )
       ),
-      // theme: ThemeData(
-      //   primaryColor: DefaultColors.primary,
-      //   splashColor: DefaultColors.dark,
-      //   scaffoldBackgroundColor: DefaultColors.baby_white,
-      //   textSelectionTheme: TextSelectionThemeData(cursorColor: DefaultColors.dark, selectionColor: DefaultColors.dark, selectionHandleColor: DefaultColors.secondary),
-      //   fontFamily: GoogleFonts.dmSans().fontFamily,
-      //   //primarySwatch: MaterialColor(0xFFFFFFFF, secondaryMaterial),
-      //   textTheme: TextTheme(
-      //     bodySmall: TextStyle(color: DefaultColors.dark, fontSize: 12),
-      //     bodyMedium: TextStyle(color: DefaultColors.dark, fontSize: 14),
-      //     bodyLarge: TextStyle(color: DefaultColors.dark, fontSize: 16),
-      //     headlineLarge: TextStyle(color: DefaultColors.dark, fontSize: 24, fontWeight: FontWeight.w500),
-      //     displaySmall: TextStyle(color: DefaultColors.grey_dark, fontSize: 12),
-      //     displayMedium: TextStyle(color: DefaultColors.grey_dark, fontSize: 14),
-      //     displayLarge: TextStyle(color: DefaultColors.grey_dark, fontSize: 16),
-      //   ),
-      // ),
-      // home: FutureBuilder(
-      //   future: IsPermissionGranted(),
-      //   builder: (context, snapshot) {
-      //     if (snapshot.data != null) {
-      //       if (snapshot.data == 1) {
-      //         return LoginScreen();
-      //       } else {
-      //         return DashboardScreen();
-      //       }
-      //     } else {
-      //       return LoginScreen();
-      //     }
-      //   },
-      // ),
-      home: RegisterScreen(),
+      home: FutureBuilder(
+        future: IsPermissionGranted(),
+        builder: (context, snapshot) {
+          if (snapshot.data != null) {
+            if (snapshot.data == 1) {
+              return LoginScreen();
+            } else {
+              return HomeScreen();
+            }
+          } else {
+            return Container();
+          }
+        },
+      ),
     );
   }
 }

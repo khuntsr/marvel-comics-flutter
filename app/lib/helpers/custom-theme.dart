@@ -18,5 +18,13 @@ FilledTextBox(Widget prefix){
       borderSide: BorderSide(color: DefaultColors.filled_border),
       borderRadius: BorderRadius.circular(12),
     ),
+    errorBorder: OutlineInputBorder(
+      borderSide: BorderSide(color: DefaultColors.danger),
+      borderRadius: BorderRadius.circular(12),
+    ),
+    focusedErrorBorder: OutlineInputBorder(
+      borderSide: BorderSide(color: DefaultColors.danger),
+      borderRadius: BorderRadius.circular(12),
+    ),
   );
 }

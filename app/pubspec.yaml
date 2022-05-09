@@ -25,6 +25,11 @@ dependencies:
   liquid_progress_indicator: ^0.4.0
   google_fonts: ^2.3.1
   appwrite: ^4.0.2
+  uuid: ^3.0.6
+  timeline_tile: ^2.0.0
+  youtube_player_flutter: ^8.0.0
+  webview_flutter: ^3.0.2
+  shrink_sidemenu: ^2.0.0+2-null-safety
 
 dev_dependencies:
   flutter_lints: ^1.0.0
@@ -39,3 +44,6 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
+    - assets/images/poster/
+    - assets/images/thumbnail/
+

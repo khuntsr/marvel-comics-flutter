@@ -1,9 +1,12 @@
+import 'package:app/controller/AuthController.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttericon/linearicons_free_icons.dart';
 
 import '../../helpers/custom-theme.dart';
 import '../../helpers/static-data.dart';
+import '../../helpers/utilities.dart';
+import '../../helpers/validator.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -24,10 +27,17 @@ class _LoginScreenState extends State<LoginScreen> {
     emailFocus = FocusNode();
     passwordController = TextEditingController();
     passwordFocus = FocusNode();
-    // if (kDebugMode) {
-    //   emailController..text = 'khuntsr@gmail.com';
-    //   passwordController..text = 'Suchit@#16';
-    // }
+    if (kDebugMode) {
+      emailController..text = 'khuntsr@gmail.com';
+      passwordController..text = 'Suchit@16';
+    }
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    emailController.dispose();
+    passwordController.dispose();
   }
 
   @override
@@ -53,16 +63,15 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Center(
                     child: Container(
                       decoration: BoxDecoration(
-                        color: DefaultColors.baby_white,
+                        color: DefaultColors.dark,
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(color: Colors.grey.withOpacity(0.4), spreadRadius: 5, blurRadius: 7, offset: Offset(0, 3)),
                         ],
                       ),
-                      padding: EdgeInsets.all(7),
-                      height: 135,
-                      width: 135,
-                      child: Image.asset(ImgPaths.logo),
+                      padding: EdgeInsets.all(Pad.md),
+                      width: MediaQuery.of(context).size.width * 0.45,
+                      child: Image.asset(ImgPaths.logo_marvel_universe),
                     ),
                   ),
                 ),
@@ -90,6 +99,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                   child: Icon(LineariconsFree.envelope, size: 22, color: DefaultColors.dark),
                                 ),
                               ),
+                              validator: (value) {
+                                return validateEmail(value.toString());
+                              },
                             ),
                             SizedBox(height: Pad.md),
                             Container(
@@ -109,11 +121,14 @@ class _LoginScreenState extends State<LoginScreen> {
                                   child: Icon(LineariconsFree.lock_1, size: 22, color: DefaultColors.dark),
                                 ),
                               ),
+                              validator: (value) {
+                                return validateRequired(value.toString());
+                              },
                             ),
                             SizedBox(height: 30),
                             MaterialButton(
                               onPressed: () async {
-                                //await btnLogin();
+                                await btnLogin();
                               },
                               child: Text("Sign in", style: TextStyle(color: DefaultColors.baby_white, fontSize: 16)),
                               padding: EdgeInsets.all(13),
@@ -127,10 +142,11 @@ class _LoginScreenState extends State<LoginScreen> {
                             SizedBox(height: 38),
                             Text('Don’t have an account?', style: Theme.of(context).textTheme.bodyMedium),
                             TextButton(
-                                onPressed: () {
-                                  Navigator.pushNamed(context, '/register');
-                                },
-                                child: Text('REGISTER', style: Theme.of(context).textTheme.displayMedium)),
+                              onPressed: () {
+                                Navigator.pushNamed(context, '/register');
+                              },
+                              child: Text('REGISTER', style: Theme.of(context).textTheme.displayMedium),
+                            ),
                           ],
                         ),
                       ),
@@ -162,5 +178,21 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
     );
+  }
+
+  btnLogin() async {
+    try {
+      if (frm.currentState!.validate()) {
+        DialogLoader(context, "Authenticating...");
+        var response = await doLogin(emailController.text, passwordController.text);
+
+        Navigator.pop(context);
+        ShowToast(response.message);
+
+        if (response.success) {
+          Navigator.pushNamed(context, '/');
+        }
+      }
+    } catch (ex) {}
   }
 }

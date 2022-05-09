@@ -3,7 +3,12 @@ import 'package:app/helpers/utilities.dart';
 import 'package:flutter/material.dart';
 
 class AppSettings {
-  static const String Endpoint = '';
+  static const String Endpoint = 'http://192.168.29.66:80/v1';
+  static const String ProjectId = 'marvelcomics.suchit.dev';
+}
+
+class AppWriteDatabaseCollection{
+  static const String UniverseMaster = '6275567eae9fb936f17b';
 }
 
 class ErrorMessages {
@@ -14,6 +19,7 @@ class ErrorMessages {
 
 class ImgPaths {
   static const String logo = 'assets/images/logo.png';
+  static const String logo_marvel_universe = 'assets/images/logo-marvel-universe.png';
   static const String logo_appwrite = 'assets/images/appwrite.png';
   static const String logo_appwrite_buitwith = 'assets/images/appwrite_buitwith.png';
   static const String bg_auth = 'assets/images/auth-bg.png';
