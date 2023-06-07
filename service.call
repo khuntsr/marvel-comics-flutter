@@ -1,0 +1,167 @@
+ public static class ServiceCall
+    {
+        public static async Task<T> Request<T>(T response, string endpoint, string methodName, bool isPostMethod, object body = null, Dictionary<string, string> headerParams = null)
+        {
+            try
+            {
+                var client = new RestClient(endpoint + methodName);
+                var request = new RestRequest(isPostMethod ? Method.POST : Method.GET);
+
+                //add all header params
+                if (headerParams != null && headerParams.Count > 0) foreach (var param in headerParams) request.AddHeader(param.Key, param.Value);
+
+                if (body != null) request.AddJsonBody(body);
+
+                var restResponse = await client.ExecuteAsync(request);
+
+                var settings = new JsonSerializerSettings
+                {
+                    NullValueHandling = NullValueHandling.Ignore,
+                    MissingMemberHandling = MissingMemberHandling.Ignore
+                };
+
+               
+
+                if (restResponse.StatusCode == 0 || restResponse.StatusCode == HttpStatusCode.OK || restResponse.StatusCode == HttpStatusCode.Created)
+                {
+                    response = JsonConvert.DeserializeObject<T>(restResponse.Content, settings);
+                    var success = new ApiResponse();
+                    success.CopyProperties(response);
+                    success.Code = (int)Response.Success;
+                    response.CopyProperties(success);
+                }
+                else
+                {
+                    var error = JsonConvert.DeserializeObject<ApiResponse>(restResponse.Content, settings);
+                    if (error == null) error = new ApiResponse();
+                    error.Code = (int)Response.Error;
+                    error.message = restResponse.Content; //todo: temp only
+                    if (error != null) response.CopyProperties(error);
+                }
+
+                return response;
+            }
+            catch (Exception)
+            {
+                var error = new ApiResponse
+                {
+                    Code = (int)Response.Exception,
+                    message = ErrorMessages.Error
+                };
+                response.CopyProperties(error);
+                return response;
+            }
+            finally
+            {
+
+            }
+        }
+
+        public static async Task<List<T>> RequestList<T>(List<T> response, string endpoint, string methodName, bool isPostMethod, object body = null, Dictionary<string, string> headerParams = null)
+        {
+            try
+            {
+                var client = new RestClient(endpoint + methodName);
+                var request = new RestRequest(isPostMethod ? Method.POST : Method.GET);
+
+                //add all header params
+                if (headerParams != null && headerParams.Count > 0) foreach (var param in headerParams) request.AddHeader(param.Key, param.Value);
+
+                if (body != null) request.AddJsonBody(body);
+
+                var restResponse = await client.ExecuteAsync(request);
+
+                var settings = new JsonSerializerSettings
+                {
+                    NullValueHandling = NullValueHandling.Ignore,
+                    MissingMemberHandling = MissingMemberHandling.Ignore
+                };
+
+                if (restResponse.StatusCode == 0 || restResponse.StatusCode == HttpStatusCode.OK || restResponse.StatusCode == HttpStatusCode.Created)
+                {
+                    response = JsonConvert.DeserializeObject<List<T>>(restResponse.Content, settings);
+                    var success = new ApiResponse();
+                    success.CopyProperties(response[0]);
+                    success.Code = (int)Response.Success;
+                    response[0].CopyProperties(success);
+                }
+                else
+                {
+                    var error = JsonConvert.DeserializeObject<ApiResponse>(restResponse.Content, settings);
+                    if (error == null) error = new ApiResponse();
+                    error.Code = (int)Response.Error;
+                    if (error != null) response.CopyProperties(error);
+                }
+
+                return response;
+            }
+            catch (Exception ex)
+            {
+                var error = new ApiResponse
+                {
+                    Code = (int)Response.Exception,
+                    message = ex.Message
+                };
+                response.CopyProperties(error);
+                return response;
+            }
+            finally
+            {
+
+            }
+        }
+
+        public static async Task<T> RequestMultipartSingle<T>(T response, string endpoint, string methodName, RestSharpFileVm file)
+        {
+            try
+            {
+                var client = new RestClient(endpoint + methodName);
+                var request = new RestRequest(Method.POST);
+
+                //request.AddHeader("Content-Type", "multipart/form-data");
+                request.AlwaysMultipartFormData = true;
+
+                request.AddFileBytes(file.ParameterName, file.FileContent, file.FileName, file.FileType);
+
+                var restResponse = await client.ExecuteAsync(request);
+
+                var settings = new JsonSerializerSettings
+                {
+                    NullValueHandling = NullValueHandling.Ignore,
+                    MissingMemberHandling = MissingMemberHandling.Ignore
+                };
+
+                if (restResponse.StatusCode == HttpStatusCode.OK || restResponse.StatusCode == HttpStatusCode.Created)
+                {
+                    response = JsonConvert.DeserializeObject<T>(restResponse.Content, settings);
+                    var success = new ApiResponse();
+                    success.CopyProperties(response);
+                    success.Code = (int)Response.Success;
+                    response.CopyProperties(success);
+                }
+                else
+                {
+                    var error = JsonConvert.DeserializeObject<ApiResponse>(restResponse.Content, settings);
+                    if (error == null) error = new ApiResponse();
+                    error.Code = (int)Response.Error;
+                    if (error != null) response.CopyProperties(error);
+                }
+
+                return response;
+            }
+            catch (Exception ex)
+            {
+                var error = new ApiResponse
+                {
+                    Code = (int)Response.Exception,
+                    message = ex.Message
+                };
+                response.CopyProperties(error);
+                return response;
+            }
+            finally
+            {
+
+            }
+        }
+    }
