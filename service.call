@@ -1,68 +1,140 @@
-<?xml version="1.0" encoding="utf-8" ?>
-<nlog xmlns="http://www.nlog-project.org/schemas/NLog.xsd"
-      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-      autoReload="true"
-      internalLogLevel="Info"
-      internalLogFile="D:\atliq\hotel-crm\CRM.Web\Logs\internal-nlog.txt">
+using Microsoft.AspNetCore.Mvc;
+using Newtonsoft.Json;
 
-	<!-- enable asp.net core layout renderers -->
-	<extensions>
-		<add assembly="NLog.Web.AspNetCore"/>
-	</extensions>
+namespace CRM.Web.Helpers
+{
+    public static class CacheFunctions
+    {
+        private static HttpContext HttpContext => new HttpContextAccessor().HttpContext!;
 
-	<!-- the targets to write to -->
-	<targets>
-		<!-- File Target for all log messages with basic details -->
-		<target xsi:type="File" name="allfile" fileName="D:\atliq\hotel-crm\CRM.Web\Logs\nlog-all-${shortdate}.log"
-				layout="${longdate}|${event-properties:item=EventId:whenEmpty=0}|${level:uppercase=true}|${logger}|${message} ${exception:format=tostring}" />
+        public static void SetSession(string key, string value)
+        {
+            HttpContext.Session.SetString(key, value);
+        }
 
-		<!-- File Target for own log messages with extra web details using some ASP.NET core renderers -->
-		<target xsi:type="File" name="webfile" fileName="D:\atliq\hotel-crm\CRM.Web\Logs\nlog-web-${shortdate}.log"
-				layout="${longdate}|${event-properties:item=EventId:whenEmpty=0}|${level:uppercase=true}|${logger}|${message} ${exception:format=tostring}|url: ${aspnet-request-url}|action: ${aspnet-mvc-action}|${callsite}" />
+        public static string GetSession(string key)
+        {
+            return HttpContext.Session.GetString(key)!;
+        }
 
-		<!--Console Target for hosting lifetime messages to improve Docker / Visual Studio startup detection -->
-		<target xsi:type="Console" name="lifetimeConsole" layout="${MicrosoftConsoleLayout}" />
+        public static void RemoveSession(string key)
+        {
+            HttpContext.Session.Remove(key);
+        }
 
-		<target name="db" xsi:type="Database"
-		        dbProvider="MySql.Data.MySqlClient.MySqlConnection, MySql.Data"
-		        connectionString="Server=127.0.0.1;Database=hotel_crm;User Id=root;Password=Suchit@16" >
+        public static void SetSuccess(string value)
+        {
+            SetSession("Success", value);
+        }
 
-			<commandText>
-				insert into error_logs (
-				Application, Logged, Level, Message,
-				Logger, CallSite, Exception
-				) values (
-				@Application, @Logged, @Level, @Message,
-				@Logger, @Callsite, @Exception
-				);
-			</commandText>
+        public static string GetSuccess()
+        {
+            return GetSession("Success");
+        }
 
-			<parameter name="@application" layout="AspNetCoreNlog" />
-			<parameter name="@logged" layout="${date}" />
-			<parameter name="@level" layout="${level}" />
-			<parameter name="@message" layout="${message}" />
+        public static void RemoveSuccess()
+        {
+            RemoveSession("Success");
+        }
 
-			<parameter name="@logger" layout="${logger}" />
-			<parameter name="@callSite" layout="${callsite:filename=true}" />
-			<parameter name="@exception" layout="${exception:tostring}" />
-		</target>
+        public static void SetError(string value)
+        {
+            SetSession("Error", value);
+        }
 
-	</targets>
+        public static string GetError()
+        {
+            return GetSession("Error");
+        }
 
-	<!-- rules to map from logger name to target -->
-	<rules>
-		<!--All logs, including from Microsoft-->
-		<logger name="*" minlevel="Trace" writeTo="allfile" />
+        public static void RemoveError()
+        {
+            RemoveSession("Error");
+        }
 
-		<!--Output hosting lifetime messages to console target for faster startup detection -->
-		<logger name="Microsoft.Hosting.Lifetime" minlevel="Info" writeTo="lifetimeConsole, webfile" final="true" />
+        public static void SetWarning(string value)
+        {
+            SetSession("Warning", value);
+        }
 
-		<!--Skip non-critical Microsoft logs and so log only own logs (BlackHole) -->
-		<logger name="Microsoft.*" maxlevel="Info" final="true" />
-		<logger name="System.Net.Http.*" maxlevel="Info" final="true" />
+        public static string GetWarning()
+        {
+            return GetSession("Warning");
+        }
 
-		<logger name="*" minlevel="Trace" writeTo="ownFile-web" />
+        public static void RemoveWarning()
+        {
+            RemoveSession("Warning");
+        }
 
-		<logger name="*" minlevel="Error" writeTo="db" />
-	</rules>
-</nlog>
+        public static void RemoveAllSession()
+        {
+            HttpContext.Session.Clear();
+        }
+
+        public static T GetModelFromState<T>(this Controller instance)
+        {
+            var name = typeof(T).Name;
+
+            if (instance.TempData[name] != null)
+                return JsonConvert.DeserializeObject<T>(Convert.ToString(instance.TempData[name])!)!;
+
+            return default!;
+        }
+
+        public static void SetModelState<T>(this Controller instance, object data)
+        {
+            var name = typeof(T).Name;
+            instance.TempData[name] = JsonConvert.SerializeObject(data);
+        }
+    }
+}
+function notifySuccess(message) {
+    $.toast({
+        text: '<i class="jq-toast-icon bi bi-check-circle"></i><p>' + message + '</p>',
+        position: 'top-center',
+        loaderBg: '#b6e9c5',
+        class: 'jq-has-icon jq-toast-success',
+        hideAfter: 3500,
+        stack: 6,
+        showHideTransition: 'fade'
+    });
+}
+
+function notifyError(message) {
+    $.toast({
+        text: '<i class="jq-toast-icon bi bi-bug-fill"></i><p>' + message + '</p>',
+        position: 'top-center',
+        loaderBg: '#FD7972',
+        class: 'jq-has-icon jq-toast-danger',
+        hideAfter: 3500,
+        stack: 6,
+        showHideTransition: 'fade'
+    });
+}
+
+function notifyWarning(message) {
+    $.toast({
+        text: '<i class="jq-toast-icon bi bi-warning"></i><p>' + message + '</p>',
+        position: 'top-center',
+        loaderBg: '#FFD240',
+        class: 'jq-has-icon jq-toast-warning',
+        hideAfter: 3500,
+        stack: 6,
+        showHideTransition: 'fade'
+    });
+}
+		
+		@{
+    Layout = null;
+}
+
+<input type="hidden" value="@CacheFunctions.GetSuccess()" id="msgSuccess" />
+<input type="hidden" value="@CacheFunctions.GetError()" id="msgError" />
+<input type="hidden" value="@CacheFunctions.GetWarning()" id="msgWarning" />
+
+@{
+    CacheFunctions.RemoveSuccess();
+    CacheFunctions.RemoveError();
+    CacheFunctions.RemoveWarning();
+}
