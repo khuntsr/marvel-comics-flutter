@@ -1,167 +1,68 @@
- public static class ServiceCall
-    {
-        public static async Task<T> Request<T>(T response, string endpoint, string methodName, bool isPostMethod, object body = null, Dictionary<string, string> headerParams = null)
-        {
-            try
-            {
-                var client = new RestClient(endpoint + methodName);
-                var request = new RestRequest(isPostMethod ? Method.POST : Method.GET);
+<?xml version="1.0" encoding="utf-8" ?>
+<nlog xmlns="http://www.nlog-project.org/schemas/NLog.xsd"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      autoReload="true"
+      internalLogLevel="Info"
+      internalLogFile="D:\atliq\hotel-crm\CRM.Web\Logs\internal-nlog.txt">
 
-                //add all header params
-                if (headerParams != null && headerParams.Count > 0) foreach (var param in headerParams) request.AddHeader(param.Key, param.Value);
+	<!-- enable asp.net core layout renderers -->
+	<extensions>
+		<add assembly="NLog.Web.AspNetCore"/>
+	</extensions>
 
-                if (body != null) request.AddJsonBody(body);
+	<!-- the targets to write to -->
+	<targets>
+		<!-- File Target for all log messages with basic details -->
+		<target xsi:type="File" name="allfile" fileName="D:\atliq\hotel-crm\CRM.Web\Logs\nlog-all-${shortdate}.log"
+				layout="${longdate}|${event-properties:item=EventId:whenEmpty=0}|${level:uppercase=true}|${logger}|${message} ${exception:format=tostring}" />
 
-                var restResponse = await client.ExecuteAsync(request);
+		<!-- File Target for own log messages with extra web details using some ASP.NET core renderers -->
+		<target xsi:type="File" name="webfile" fileName="D:\atliq\hotel-crm\CRM.Web\Logs\nlog-web-${shortdate}.log"
+				layout="${longdate}|${event-properties:item=EventId:whenEmpty=0}|${level:uppercase=true}|${logger}|${message} ${exception:format=tostring}|url: ${aspnet-request-url}|action: ${aspnet-mvc-action}|${callsite}" />
 
-                var settings = new JsonSerializerSettings
-                {
-                    NullValueHandling = NullValueHandling.Ignore,
-                    MissingMemberHandling = MissingMemberHandling.Ignore
-                };
+		<!--Console Target for hosting lifetime messages to improve Docker / Visual Studio startup detection -->
+		<target xsi:type="Console" name="lifetimeConsole" layout="${MicrosoftConsoleLayout}" />
 
-               
+		<target name="db" xsi:type="Database"
+		        dbProvider="MySql.Data.MySqlClient.MySqlConnection, MySql.Data"
+		        connectionString="Server=127.0.0.1;Database=hotel_crm;User Id=root;Password=Suchit@16" >
 
-                if (restResponse.StatusCode == 0 || restResponse.StatusCode == HttpStatusCode.OK || restResponse.StatusCode == HttpStatusCode.Created)
-                {
-                    response = JsonConvert.DeserializeObject<T>(restResponse.Content, settings);
-                    var success = new ApiResponse();
-                    success.CopyProperties(response);
-                    success.Code = (int)Response.Success;
-                    response.CopyProperties(success);
-                }
-                else
-                {
-                    var error = JsonConvert.DeserializeObject<ApiResponse>(restResponse.Content, settings);
-                    if (error == null) error = new ApiResponse();
-                    error.Code = (int)Response.Error;
-                    error.message = restResponse.Content; //todo: temp only
-                    if (error != null) response.CopyProperties(error);
-                }
+			<commandText>
+				insert into error_logs (
+				Application, Logged, Level, Message,
+				Logger, CallSite, Exception
+				) values (
+				@Application, @Logged, @Level, @Message,
+				@Logger, @Callsite, @Exception
+				);
+			</commandText>
 
-                return response;
-            }
-            catch (Exception)
-            {
-                var error = new ApiResponse
-                {
-                    Code = (int)Response.Exception,
-                    message = ErrorMessages.Error
-                };
-                response.CopyProperties(error);
-                return response;
-            }
-            finally
-            {
+			<parameter name="@application" layout="AspNetCoreNlog" />
+			<parameter name="@logged" layout="${date}" />
+			<parameter name="@level" layout="${level}" />
+			<parameter name="@message" layout="${message}" />
 
-            }
-        }
+			<parameter name="@logger" layout="${logger}" />
+			<parameter name="@callSite" layout="${callsite:filename=true}" />
+			<parameter name="@exception" layout="${exception:tostring}" />
+		</target>
 
-        public static async Task<List<T>> RequestList<T>(List<T> response, string endpoint, string methodName, bool isPostMethod, object body = null, Dictionary<string, string> headerParams = null)
-        {
-            try
-            {
-                var client = new RestClient(endpoint + methodName);
-                var request = new RestRequest(isPostMethod ? Method.POST : Method.GET);
+	</targets>
 
-                //add all header params
-                if (headerParams != null && headerParams.Count > 0) foreach (var param in headerParams) request.AddHeader(param.Key, param.Value);
+	<!-- rules to map from logger name to target -->
+	<rules>
+		<!--All logs, including from Microsoft-->
+		<logger name="*" minlevel="Trace" writeTo="allfile" />
 
-                if (body != null) request.AddJsonBody(body);
+		<!--Output hosting lifetime messages to console target for faster startup detection -->
+		<logger name="Microsoft.Hosting.Lifetime" minlevel="Info" writeTo="lifetimeConsole, webfile" final="true" />
 
-                var restResponse = await client.ExecuteAsync(request);
+		<!--Skip non-critical Microsoft logs and so log only own logs (BlackHole) -->
+		<logger name="Microsoft.*" maxlevel="Info" final="true" />
+		<logger name="System.Net.Http.*" maxlevel="Info" final="true" />
 
-                var settings = new JsonSerializerSettings
-                {
-                    NullValueHandling = NullValueHandling.Ignore,
-                    MissingMemberHandling = MissingMemberHandling.Ignore
-                };
+		<logger name="*" minlevel="Trace" writeTo="ownFile-web" />
 
-                if (restResponse.StatusCode == 0 || restResponse.StatusCode == HttpStatusCode.OK || restResponse.StatusCode == HttpStatusCode.Created)
-                {
-                    response = JsonConvert.DeserializeObject<List<T>>(restResponse.Content, settings);
-                    var success = new ApiResponse();
-                    success.CopyProperties(response[0]);
-                    success.Code = (int)Response.Success;
-                    response[0].CopyProperties(success);
-                }
-                else
-                {
-                    var error = JsonConvert.DeserializeObject<ApiResponse>(restResponse.Content, settings);
-                    if (error == null) error = new ApiResponse();
-                    error.Code = (int)Response.Error;
-                    if (error != null) response.CopyProperties(error);
-                }
-
-                return response;
-            }
-            catch (Exception ex)
-            {
-                var error = new ApiResponse
-                {
-                    Code = (int)Response.Exception,
-                    message = ex.Message
-                };
-                response.CopyProperties(error);
-                return response;
-            }
-            finally
-            {
-
-            }
-        }
-
-        public static async Task<T> RequestMultipartSingle<T>(T response, string endpoint, string methodName, RestSharpFileVm file)
-        {
-            try
-            {
-                var client = new RestClient(endpoint + methodName);
-                var request = new RestRequest(Method.POST);
-
-                //request.AddHeader("Content-Type", "multipart/form-data");
-                request.AlwaysMultipartFormData = true;
-
-                request.AddFileBytes(file.ParameterName, file.FileContent, file.FileName, file.FileType);
-
-                var restResponse = await client.ExecuteAsync(request);
-
-                var settings = new JsonSerializerSettings
-                {
-                    NullValueHandling = NullValueHandling.Ignore,
-                    MissingMemberHandling = MissingMemberHandling.Ignore
-                };
-
-                if (restResponse.StatusCode == HttpStatusCode.OK || restResponse.StatusCode == HttpStatusCode.Created)
-                {
-                    response = JsonConvert.DeserializeObject<T>(restResponse.Content, settings);
-                    var success = new ApiResponse();
-                    success.CopyProperties(response);
-                    success.Code = (int)Response.Success;
-                    response.CopyProperties(success);
-                }
-                else
-                {
-                    var error = JsonConvert.DeserializeObject<ApiResponse>(restResponse.Content, settings);
-                    if (error == null) error = new ApiResponse();
-                    error.Code = (int)Response.Error;
-                    if (error != null) response.CopyProperties(error);
-                }
-
-                return response;
-            }
-            catch (Exception ex)
-            {
-                var error = new ApiResponse
-                {
-                    Code = (int)Response.Exception,
-                    message = ex.Message
-                };
-                response.CopyProperties(error);
-                return response;
-            }
-            finally
-            {
-
-            }
-        }
-    }
+		<logger name="*" minlevel="Error" writeTo="db" />
+	</rules>
+</nlog>
