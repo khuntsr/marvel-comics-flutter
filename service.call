@@ -1,140 +1,183 @@
-using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json;
+ if (result.Response == ResponseStatus.Success)
+            {
+                var user = await _userService.GetAuth(result.Identity);
 
-namespace CRM.Web.Helpers
+                var jwtTokenHandler = new JwtSecurityTokenHandler();
+
+                var key = Encoding.ASCII.GetBytes(_config.GetSection("Auth").GetValue<string>("SigningKey")!);
+
+                var tokenDescriptor = new SecurityTokenDescriptor
+                {
+                    Subject = new ClaimsIdentity(new[]
+                    {
+                        new Claim(ClaimTypes.NameIdentifier,user.Id ),
+                        new Claim(ClaimTypes.Role, string.Join(",", user.Roles!.Select(s=>s.Id).ToList())),
+                        new Claim(ClaimTypes.Name, user.FirstName + " " + user.LastName),
+                        new Claim(JwtRegisteredClaimNames.Sub, Guid.NewGuid().ToString()),
+                        new Claim(JwtRegisteredClaimNames.Email, user.Email),
+                        new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                    }),
+                    Expires = DateTime.Now.AddMonths(6),
+                    SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha512Signature)
+                };
+
+                var token = jwtTokenHandler.CreateToken(tokenDescriptor);
+
+                await _logService.AddLogTrail(ApiHelpers.GetLogTrailObject("User logged-in successfully in App.", LogType.LoggedInToken, data.Device, data.OperatingSystem));
+
+                return Ok(new
+                {
+                    Token = jwtTokenHandler.WriteToken(token),
+                    Expiration = token.ValidTo,
+                    User = user
+                });
+            }
+
+
+
+using CRM.Entities.Database;
+using CRM.Entities;
+using CRM.Services.Implementation;
+using CRM.Services.Interface;
+using Microsoft.AspNetCore.Identity;
+using NLog;
+using NLog.Web;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using System.Text.Json.Serialization;
+using Microsoft.EntityFrameworkCore;
+using LogLevel = Microsoft.Extensions.Logging.LogLevel;
+using CRM.Emails.Implementation;
+using CRM.Emails.Interface;
+
+var logger = LogManager.Setup().LoadConfigurationFromAppSettings().GetCurrentClassLogger();
+logger.Debug("init main");
+
+try
 {
-    public static class CacheFunctions
+    var builder = WebApplication.CreateBuilder(args);
+    builder.Services.AddControllers().AddJsonOptions(options =>
     {
-        private static HttpContext HttpContext => new HttpContextAccessor().HttpContext!;
-
-        public static void SetSession(string key, string value)
-        {
-            HttpContext.Session.SetString(key, value);
-        }
-
-        public static string GetSession(string key)
-        {
-            return HttpContext.Session.GetString(key)!;
-        }
-
-        public static void RemoveSession(string key)
-        {
-            HttpContext.Session.Remove(key);
-        }
-
-        public static void SetSuccess(string value)
-        {
-            SetSession("Success", value);
-        }
-
-        public static string GetSuccess()
-        {
-            return GetSession("Success");
-        }
-
-        public static void RemoveSuccess()
-        {
-            RemoveSession("Success");
-        }
-
-        public static void SetError(string value)
-        {
-            SetSession("Error", value);
-        }
-
-        public static string GetError()
-        {
-            return GetSession("Error");
-        }
-
-        public static void RemoveError()
-        {
-            RemoveSession("Error");
-        }
-
-        public static void SetWarning(string value)
-        {
-            SetSession("Warning", value);
-        }
-
-        public static string GetWarning()
-        {
-            return GetSession("Warning");
-        }
-
-        public static void RemoveWarning()
-        {
-            RemoveSession("Warning");
-        }
-
-        public static void RemoveAllSession()
-        {
-            HttpContext.Session.Clear();
-        }
-
-        public static T GetModelFromState<T>(this Controller instance)
-        {
-            var name = typeof(T).Name;
-
-            if (instance.TempData[name] != null)
-                return JsonConvert.DeserializeObject<T>(Convert.ToString(instance.TempData[name])!)!;
-
-            return default!;
-        }
-
-        public static void SetModelState<T>(this Controller instance, object data)
-        {
-            var name = typeof(T).Name;
-            instance.TempData[name] = JsonConvert.SerializeObject(data);
-        }
-    }
-}
-function notifySuccess(message) {
-    $.toast({
-        text: '<i class="jq-toast-icon bi bi-check-circle"></i><p>' + message + '</p>',
-        position: 'top-center',
-        loaderBg: '#b6e9c5',
-        class: 'jq-has-icon jq-toast-success',
-        hideAfter: 3500,
-        stack: 6,
-        showHideTransition: 'fade'
+        options.JsonSerializerOptions.DefaultIgnoreCondition
+            = JsonIgnoreCondition.WhenWritingNull;
     });
-}
 
-function notifyError(message) {
-    $.toast({
-        text: '<i class="jq-toast-icon bi bi-bug-fill"></i><p>' + message + '</p>',
-        position: 'top-center',
-        loaderBg: '#FD7972',
-        class: 'jq-has-icon jq-toast-danger',
-        hideAfter: 3500,
-        stack: 6,
-        showHideTransition: 'fade'
+    // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+    builder.Services.AddEndpointsApiExplorer();
+    builder.Services.AddSwaggerGen();
+
+    // Use 'MariaDbServerVersion' for MariaDB.
+    // Alternatively, use 'ServerVersion.AutoDetect(connectionString)'.
+    // For common usages, see pull request #1233.
+    var serverVersion = new MySqlServerVersion(new Version(8, 0, 29));
+
+    //DbContext
+    // Replace with your connection string.
+    var connectionString = builder.Configuration.GetConnectionString("Online_DB");
+
+    // Replace 'YourDbContext' with the name of your own DbContext derived class.
+    builder.Services.AddDbContext<ApplicationDbContext>(
+        dbContextOptions => dbContextOptions
+            .UseMySql(connectionString, serverVersion)
+            // The following three options help with debugging, but should
+            // be changed or removed for production.
+            .LogTo(Console.WriteLine, LogLevel.Information)
+            .EnableSensitiveDataLogging()
+            .EnableDetailedErrors());
+
+    
+    builder.Services.AddIdentity<User, Role>(options =>
+        {
+            options.User.RequireUniqueEmail = false;
+            options.Password.RequireDigit = false;
+            options.Password.RequiredLength = 4;
+            options.Password.RequireNonAlphanumeric = false;
+            options.Password.RequireUppercase = false;
+            options.Password.RequireLowercase = false;
+        })
+        .AddEntityFrameworkStores<ApplicationDbContext>()
+        .AddDefaultTokenProviders();
+
+    //JWT Configuration 
+    //Reference for Custom Validation: https://jasonwatmore.com/post/2021/04/30/net-5-jwt-authentication-tutorial-with-example-api
+    builder.Services.AddAuthentication(option =>
+    {
+        option.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        option.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+
+    }).AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = false,
+            ValidateAudience = false,
+            ValidateLifetime = false,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = builder.Configuration.GetSection("Auth").GetValue<string>("Issuer"),
+            ValidAudience = builder.Configuration.GetSection("Auth").GetValue<string>("Audience"),
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration.GetSection("Auth").GetValue<string>("SigningKey")!))
+        };
     });
-}
 
-function notifyWarning(message) {
-    $.toast({
-        text: '<i class="jq-toast-icon bi bi-warning"></i><p>' + message + '</p>',
-        position: 'top-center',
-        loaderBg: '#FFD240',
-        class: 'jq-has-icon jq-toast-warning',
-        hideAfter: 3500,
-        stack: 6,
-        showHideTransition: 'fade'
+    //Dependency injection 
+    builder.Services.AddTransient<IUserService, UserService>();
+    builder.Services.AddTransient(typeof(IMasterService), typeof(MasterService));
+    builder.Services.AddTransient(typeof(IPermissionService), typeof(PermissionService));
+    builder.Services.AddTransient(typeof(IOrganizationService), typeof(OrganizationService));
+    builder.Services.AddTransient(typeof(IHotelService), typeof(HotelService));
+    builder.Services.AddTransient(typeof(IDropdownService), typeof(DropdownService));
+    builder.Services.AddTransient(typeof(IAutoCompleteService), typeof(AutoCompleteService));
+    builder.Services.AddTransient(typeof(IRemoteService), typeof(RemoteService));
+    builder.Services.AddSingleton(typeof(ILogService), typeof(LogService));
+    builder.Services.AddSingleton(typeof(IRecursiveService), typeof(RecursiveService));
+    builder.Services.AddSingleton(typeof(ITimesheetService), typeof(TimesheetService));
+    builder.Services.AddScoped(typeof(IEmailService), typeof(EmailService));
+
+    var app = builder.Build();
+
+    // Configure the HTTP request pipeline.
+    //if (app.Environment.IsDevelopment())
+    //{
+    //    app.UseSwagger();
+    //    app.UseSwaggerUI();
+    //}
+
+    app.UseSwagger(options =>
+    {
+        options.SerializeAsV2 = true;
     });
+
+    app.UseSwaggerUI();
+
+    app.UseHttpsRedirection();
+
+    app.UseAuthentication();
+    app.UseAuthorization();
+
+    app.MapControllers();
+
+    app.Run();
 }
-		
-		@{
-    Layout = null;
+catch (Exception e)
+{
+    // NLog: catch setup errors
+    logger.Error(e, "Stopped program because of exception");
+    throw;
+}
+finally
+{
+    // Ensure to flush and stop internal timers/threads before application-exit (Avoid segmentation fault on Linux)
+    LogManager.Shutdown();
 }
 
-<input type="hidden" value="@CacheFunctions.GetSuccess()" id="msgSuccess" />
-<input type="hidden" value="@CacheFunctions.GetError()" id="msgError" />
-<input type="hidden" value="@CacheFunctions.GetWarning()" id="msgWarning" />
 
-@{
-    CacheFunctions.RemoveSuccess();
-    CacheFunctions.RemoveError();
-    CacheFunctions.RemoveWarning();
-}
+
+
+
+ "Auth": {
+    "Issuer": "https://localhost:7092",
+    "Audience": "https://localhost:7092",
+    "SigningKey": "asdasd0",
+    "TokenTimeoutMinutes": 600
+  },
