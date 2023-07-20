@@ -119,3 +119,83 @@
         }
 
 
+public class FileEncrypt
+    {
+        private static readonly byte[] Key = Encoding.UTF8.GetBytes("asdqwezxcqweasdc"); // Replace with a strong, unique key
+        private static readonly byte[] Iv = new byte[16]; // Initialization vector
+
+        public static async Task EncryptFile(IFormFile file, string outputFile)
+        {
+            using var aes = Aes.Create();
+            aes.Key = Key;
+            aes.IV = Iv;
+
+            var inputFileStream = await ConvertIFormFileToFileStream(file);
+            await using var outputFileStream = new FileStream(outputFile, FileMode.Create);
+
+            using var encryption = aes.CreateEncryptor(aes.Key, aes.IV);
+            await using var cryptoStream = new CryptoStream(outputFileStream, encryption, CryptoStreamMode.Write);
+
+            await inputFileStream.CopyToAsync(cryptoStream);
+        }
+
+        public static void DecryptFile(string inputFile, string outputFile)
+        {
+            using var aes = Aes.Create();
+            aes.Key = Key;
+            aes.IV = Iv;
+
+            using var inputFileStream = new FileStream(inputFile, FileMode.Open);
+            using var outputFileStream = new FileStream(outputFile, FileMode.Create);
+
+            using var decryption = aes.CreateDecryptor(aes.Key, aes.IV);
+            using var cryptoStream = new CryptoStream(inputFileStream, decryption, CryptoStreamMode.Read);
+
+            cryptoStream.CopyTo(outputFileStream);
+        }
+
+        public static async Task<FileStream> ConvertIFormFileToFileStream(IFormFile formFile)
+        {
+            var memoryStream = new MemoryStream();
+
+            await formFile.CopyToAsync(memoryStream);
+            memoryStream.Position = 0;
+
+            // Create a temporary physical file
+            var tempFilePath = Path.GetTempFileName();
+            await File.WriteAllBytesAsync(tempFilePath, memoryStream.ToArray());
+
+            // Use the temporary file to create the FileStream
+            return new FileStream(tempFilePath, FileMode.Open, FileAccess.Read);
+        }
+    }
+
+
+  public IActionResult Temp()
+        {
+            return View();
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Temp(IFormFile file)
+        {
+            try
+            { 
+                var encryptedFile = $"wwwroot/file/{Path.GetFileNameWithoutExtension(file.FileName)}.dat";
+                var decryptedFile = $"wwwroot/file/{Path.GetFileNameWithoutExtension(file.FileName)}.{Path.GetExtension(file.FileName)}";
+                 
+                // Encrypt the file
+                await FileEncrypt.EncryptFile(file, encryptedFile);
+
+                // Decrypt the file
+                FileEncrypt.DecryptFile(encryptedFile, decryptedFile);
+
+                return View();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
+            }
+
+        }
