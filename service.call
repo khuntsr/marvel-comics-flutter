@@ -1,127 +1,14 @@
- //SET DefenderPath: @"C:\Program Files\Windows Defender\MpCmdRun.exe"
-    public static class ScanHelpers
+using System.Security.Cryptography;
+using System.Text;
+
+namespace Core.CMS.Helpers
+{
+    public class FileEncrypt
     {
-        public static async Task<ScanResult> ScanFile(string filePath)
-        {
-            try
-            {
-                var isVirus = await WinDefender.IsVirus(filePath);
-                return isVirus ? ScanResult.ThreatFound : ScanResult.NoThreatFound;
-            }
-            catch (Exception)
-            {
-                return ScanResult.Error;
-            }
-        }
+        private static HttpContext? HttpContext => new HttpContextAccessor().HttpContext;
+        private static IConfiguration Configuration => (IConfiguration)HttpContext!.RequestServices.GetService(typeof(IConfiguration))!;
 
-        public static async Task<ScanResult> ScanFile(byte[] fileBytes)
-        {
-            try
-            {
-                var isVirus = await WinDefender.IsVirus(fileBytes);
-                return isVirus ? ScanResult.ThreatFound : ScanResult.NoThreatFound;
-            }
-            catch (Exception)
-            {
-                return ScanResult.Error;
-            }
-        }
-    }
-
-    public enum ScanResult
-    {
-        [Description("No threat found")]
-        NoThreatFound,
-
-        [Description("Threat found")]
-        ThreatFound,
-
-        [Description("The file could not be found")]
-        FileNotFound,
-
-        [Description("Timeout")]
-        Timeout,
-
-        [Description("Error")] 
-        Error
-    }
-
-
- private static bool _isDefenderAvailable;
-        private static readonly string DefenderPath;
-        private static readonly SemaphoreSlim Lock = new(5); //limit to 5 concurrent checks at a time
-
-        //static ctor
-        static WinDefender()
-        {
-            if (OperatingSystem.IsWindows())
-            {
-                DefenderPath = Environment.GetEnvironmentVariable("DefenderPath");
-                _isDefenderAvailable = File.Exists(DefenderPath);
-            }
-            else
-                _isDefenderAvailable = false;
-        }
-
-        public static async Task<bool> IsVirus(byte[] file, CancellationToken cancellationToken = default)
-        {
-            if (!_isDefenderAvailable) return false;
-
-            var path = Path.GetTempFileName();
-            await File.WriteAllBytesAsync(path, file, cancellationToken); //save temp file
-
-            if (cancellationToken.IsCancellationRequested) return false;
-
-            try
-            {
-                return await IsVirus(path, cancellationToken);
-            }
-            finally
-            {
-                File.Delete(path); //cleanup temp file
-            }
-        }
-
-        public static async Task<bool> IsVirus(string path, CancellationToken cancellationToken = default)
-        {
-            await Lock.WaitAsync(cancellationToken);
-
-            try
-            {
-                using var process = Process.Start(DefenderPath, $"-Scan -ScanType 3 -File \"{path}\" -DisableRemediation");
-                
-                if (process == null)
-                {
-                    _isDefenderAvailable = false; //disable future attempts
-                    throw new InvalidOperationException("Failed to start MpCmdRun.exe");
-                }
-
-                try
-                {
-                     process.WaitForExitAsync(cancellationToken).Wait(2500, cancellationToken);
-                }
-                catch (TimeoutException ex) //timeout
-                {
-                    throw new TimeoutException("Timeout waiting for MpCmdRun.exe to return", ex);
-                }
-                finally
-                {
-                    process.Kill(); //always kill the process, it's fine if it's already exited, but if we were timed out or cancelled via token - let's kill it
-                }
-
-                return process.ExitCode == 2;
-
-            }
-            finally
-            {
-                Lock.Release();
-            }
-        }
-
-
-public class FileEncrypt
-    {
-        private static readonly byte[] Key = Encoding.UTF8.GetBytes("asdqwezxcqweasdc"); // Replace with a strong, unique key
+        private static readonly byte[] Key = Encoding.UTF8.GetBytes(Configuration.GetSection("Settings").GetValue<string>("FileCryptographyKey")!); // Replace with a strong, unique key
         private static readonly byte[] Iv = new byte[16]; // Initialization vector
 
         public static async Task EncryptFile(IFormFile file, string outputFile)
@@ -169,18 +56,169 @@ public class FileEncrypt
             return new FileStream(tempFilePath, FileMode.Open, FileAccess.Read);
         }
     }
+}
 
 
-  public IActionResult Temp()
+using System.ComponentModel;
+
+namespace Core.CMS.Helpers
+{
+    //SET DefenderPath: @"C:\Program Files\Windows Defender\MpCmdRun.exe"
+    public static class ScanHelpers
+    {
+        public static async Task<ScanResult> ScanFile(string filePath)
+        {
+            try
+            {
+                var isVirus = await WinDefender.IsVirus(filePath);
+                return isVirus ? ScanResult.ThreatFound : ScanResult.NoThreatFound;
+            }
+            catch (Exception)
+            {
+                return ScanResult.Error;
+            }
+        }
+
+        public static async Task<ScanResult> ScanFile(byte[] fileBytes)
+        {
+            try
+            {
+                var isVirus = await WinDefender.IsVirus(fileBytes);
+                return isVirus ? ScanResult.ThreatFound : ScanResult.NoThreatFound;
+            }
+            catch (Exception)
+            {
+                return ScanResult.Error;
+            }
+        }
+    }
+
+    public enum ScanResult
+    {
+        [Description("No threat found")]
+        NoThreatFound,
+
+        [Description("Threat found")]
+        ThreatFound,
+
+        [Description("The file could not be found")]
+        FileNotFound,
+
+        [Description("Timeout")]
+        Timeout,
+
+        [Description("Error")]
+        Error
+    }
+}
+
+
+
+using System.Diagnostics;
+
+namespace Core.CMS.Helpers
+{
+    public static class WinDefender
+    {
+        private static bool _isDefenderAvailable;
+        private static readonly string? DefenderPath;
+        private static readonly SemaphoreSlim Lock = new(5); //limit to 5 concurrent checks at a time
+
+        private static HttpContext? HttpContext => new HttpContextAccessor().HttpContext;
+        private static IConfiguration Configuration => (IConfiguration)HttpContext!.RequestServices.GetService(typeof(IConfiguration))!;
+       
+        //static ctor
+        static WinDefender()
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                DefenderPath = Configuration.GetSection("Settings").GetValue<string>("WindowsDefenderPath");
+                _isDefenderAvailable = File.Exists(DefenderPath);
+            }
+            else
+                _isDefenderAvailable = false;
+        }
+
+        public static async Task<bool> IsVirus(byte[] file, CancellationToken cancellationToken = default)
+        {
+            if (!_isDefenderAvailable) return false;
+
+            var path = Path.GetTempFileName();
+            await File.WriteAllBytesAsync(path, file, cancellationToken); //save temp file
+
+            if (cancellationToken.IsCancellationRequested) return false;
+
+            try
+            {
+                return await IsVirus(path, cancellationToken);
+            }
+            finally
+            {
+                File.Delete(path); //cleanup temp file
+            }
+        }
+
+        public static async Task<bool> IsVirus(string path, CancellationToken cancellationToken = default)
+        {
+            await Lock.WaitAsync(cancellationToken);
+
+            try
+            {
+                if (string.IsNullOrWhiteSpace(DefenderPath)) return false;
+              
+                using var process = Process.Start(DefenderPath, $"-Scan -ScanType 3 -File \"{path}\" -DisableRemediation");
+
+                if (process == null)
+                {
+                    _isDefenderAvailable = false; //disable future attempts
+                    throw new InvalidOperationException("Failed to start MpCmdRun.exe");
+                }
+
+                try
+                {
+                    process.WaitForExitAsync(cancellationToken).Wait(2500, cancellationToken);
+                }
+                catch (TimeoutException ex) //timeout
+                {
+                    throw new TimeoutException("Timeout waiting for MpCmdRun.exe to return", ex);
+                }
+                finally
+                {
+                    process.Kill(); //always kill the process, it's fine if it's already exited, but if we were timed out or cancelled via token - let's kill it
+                }
+
+                return process.ExitCode == 2; 
+            }
+            finally
+            {
+                Lock.Release();
+            }
+        }
+    }
+}
+
+
+
+[AllowAnonymous]
+        public IActionResult Temp()
         {
             return View();
         }
 
         [HttpPost]
+        [AllowAnonymous]
         public async Task<IActionResult> Temp(IFormFile file)
         {
             try
-            { 
+            {
+                using (MemoryStream memoryStream = new MemoryStream())
+                {
+                    await file.CopyToAsync(memoryStream);
+                    var x = ScanHelpers.ScanFile(memoryStream.ToArray());
+                }
+
+     
+
                 var encryptedFile = $"wwwroot/file/{Path.GetFileNameWithoutExtension(file.FileName)}.dat";
                 var decryptedFile = $"wwwroot/file/{Path.GetFileNameWithoutExtension(file.FileName)}.{Path.GetExtension(file.FileName)}";
                  
@@ -199,3 +237,10 @@ public class FileEncrypt
             }
 
         }
+
+
+"Settings": {
+    "AuditLogDeletePeriodDays": 7,
+    "FileCryptographyKey": "asdqwezxcqweasdc",
+    "WindowsDefenderPath": "C:\\Program Files\\Windows Defender\\MpCmdRun.exe"
+  }
